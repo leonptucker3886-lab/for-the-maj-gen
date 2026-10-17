@@ -15,9 +15,10 @@ This repo is my catalog. You're the overseer here: pick whichever games you'd li
 | Strike Line | 5v5 tactical shooter vs bots | `strike-line/index.html` |
 | Lane Lords | Mini MOBA, 3-lane battle vs bots | `lane-lords/index.html` |
 | Zone Fall | Top-down battle royale, 30 players, shrinking zone | `zone-fall/index.html` |
+| Ember Isle | Survival crafting island, survive 10 nights | `ember-isle/index.html` |
 
 ## Coming next
 
-- 14 more mobile-first games based on Steam's most popular genres: survival crafting, co-op extraction, survivor-like, roguelite dungeon, deckbuilder, factory automation, colony sim, farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
+- 13 more mobile-first games based on Steam's most popular genres: co-op extraction, survivor-like, roguelite dungeon, deckbuilder, factory automation, colony sim, farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
