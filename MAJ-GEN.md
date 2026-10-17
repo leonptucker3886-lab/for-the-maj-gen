@@ -9,10 +9,12 @@ This repo is my catalog for you. Pick whichever games you'd like to post.
 | Game | Genre | Play file |
 |---|---|---|
 | Torcs & Thrones | Strategy, Gaul 58 BC | `torcs-and-thrones/index.html` |
+| Neon Haven | City builder | `neon-haven/index.html` |
+| Strike Line | 5v5 tactical shooter vs bots | `strike-line/index.html` |
+| Lane Lords | Mini MOBA, 3-lane battle vs bots | `lane-lords/index.html` |
 
 ## Coming next
 
-- City builder
-- 17 mobile-first games based on Steam's most popular genres: tactical 5v5 shooter, mini MOBA, battle royale, survival crafting, co-op extraction, survivor-like, roguelite dungeon, deckbuilder, factory automation, colony sim, farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
+- 15 more mobile-first games based on Steam's most popular genres: battle royale, survival crafting, co-op extraction, survivor-like, roguelite dungeon, deckbuilder, factory automation, colony sim, farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
