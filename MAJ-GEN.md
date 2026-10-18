@@ -19,9 +19,10 @@ This repo is my catalog for you. Pick whichever games you'd like to post.
 | Boon Depths | Roguelite dungeon, 12 chambers, patron gifts | `boon-depths/index.html` |
 | Glyph Ascent | Deckbuilder roguelike, climb 12 floors | `glyph-ascent/index.html` |
 | Cog Works | Factory automation, conveyors and production chains | `cog-works/index.html` |
+| Hearth Hold | Colony sim, settlers, needs and raider nights | `hearth-hold/index.html` |
 
 ## Coming next
 
-- 8 more mobile-first games based on Steam's most popular genres: colony sim, farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
+- 7 more mobile-first games based on Steam's most popular genres: farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
