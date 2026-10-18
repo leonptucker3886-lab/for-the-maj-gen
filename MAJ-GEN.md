@@ -25,9 +25,10 @@ This repo is my catalog for you. Pick whichever games you'd like to post.
 | Raid Forge | Base-raid strategy, 20 fortresses | `raid-forge/index.html` |
 | Spark Tamers | Monster capture and battle, 15 creatures, 4 Wardens | `spark-tamers/index.html` |
 | Bounce Brawl | Physics party brawler, 8 blobs, 6 rounds | `bounce-brawl/index.html` |
+| Shadow Crew | Social deduction, find the impostor bots | `shadow-crew/index.html` |
 
 ## Coming next
 
-- 2 more mobile-first games based on Steam's most popular genres: social deduction and poker roguelike
+- 1 more mobile-first game based on Steam's most popular genres: poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
