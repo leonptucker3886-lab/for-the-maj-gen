@@ -23,9 +23,10 @@ This repo is my catalog for you. Pick whichever games you'd like to post.
 | Sprout Vale | Farming and life sim, one year, 4 seasons | `sprout-vale/index.html` |
 | Prism Bastion | Neon tower defense, 30 waves | `prism-bastion/index.html` |
 | Raid Forge | Base-raid strategy, 20 fortresses | `raid-forge/index.html` |
+| Spark Tamers | Monster capture and battle, 15 creatures, 4 Wardens | `spark-tamers/index.html` |
 
 ## Coming next
 
-- 4 more mobile-first games based on Steam's most popular genres: monster capture, party brawler, social deduction and poker roguelike
+- 3 more mobile-first games based on Steam's most popular genres: party brawler, social deduction and poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
