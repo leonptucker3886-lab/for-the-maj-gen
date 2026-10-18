@@ -26,9 +26,10 @@ This repo is my catalog. You're the overseer here: pick whichever games you'd li
 | Prism Bastion | Neon tower defense, 30 waves | `prism-bastion/index.html` |
 | Raid Forge | Base-raid strategy, 20 fortresses | `raid-forge/index.html` |
 | Spark Tamers | Monster capture and battle, 15 creatures, 4 Wardens | `spark-tamers/index.html` |
+| Bounce Brawl | Physics party brawler, 8 blobs, 6 rounds | `bounce-brawl/index.html` |
 
 ## Coming next
 
-- 3 more mobile-first games based on Steam's most popular genres: party brawler, social deduction and poker roguelike
+- 2 more mobile-first games based on Steam's most popular genres: social deduction and poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
