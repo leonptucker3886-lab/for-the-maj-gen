@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#173b2a">
+<title>Sprout Vale</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+html,body{height:100%;background:#0d2419;color:#fff8e6;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#hud{position:fixed;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 6px) 10px 6px;display:flex;gap:8px;align-items:center;justify-content:space-between;pointer-events:none;font-weight:700;font-size:15px;text-shadow:0 2px 3px #0008}
+#hud .pill{background:#0007;border:1px solid #fff3;border-radius:14px;padding:5px 10px;backdrop-filter:blur(4px)}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:6px 6px calc(env(safe-area-inset-bottom) + 8px);display:flex;gap:6px;justify-content:center;flex-wrap:wrap;background:linear-gradient(#0000,#0009 30%)}
+.tb{min-width:56px;height:58px;border-radius:14px;border:2px solid #fff4;background:#20402fdd;color:#fff;font-size:12px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.tb b{font-size:20px;line-height:22px}
+.tb.on{border-color:#ffd25a;background:#5a4a14ee;box-shadow:0 0 12px #ffd25a88}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#071a10cc;backdrop-filter:blur(6px);z-index:5}
+.card{width:min(92vw,420px);max-height:86vh;overflow:auto;background:linear-gradient(#24503a,#163626);border:2px solid #ffd25a66;border-radius:20px;padding:18px;box-shadow:0 10px 40px #000a}
+.card h1{font-size:30px;color:#ffd25a;text-align:center;letter-spacing:1px}
+.card h2{font-size:20px;color:#ffd25a;margin-bottom:8px}
+.card p{font-size:14px;line-height:1.45;margin:6px 0;color:#eaf5dc}
+.btn{display:block;width:100%;margin-top:10px;padding:14px;border-radius:14px;border:0;background:linear-gradient(#ffd25a,#e59a1c);color:#3a2300;font-size:17px;font-weight:800}
+.btn.alt{background:#ffffff1c;color:#fff;border:1px solid #fff4}
+.btn:disabled{opacity:.4}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fff2;font-size:14px}
+.row button{padding:10px 12px;border-radius:10px;border:0;background:#ffd25a;color:#3a2300;font-weight:800;min-width:76px}
+.row button:disabled{opacity:.35}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 52px);transform:translateX(-50%);background:#000a;padding:8px 14px;border-radius:12px;font-size:14px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;z-index:4;text-align:center;max-width:90vw}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="hud"><span class="pill" id="hDay">Spring 1</span><span class="pill" id="hGold">0g</span><span class="pill" id="hEn">⚡100</span></div>
+<div id="toast"></div>
+<div id="bar"></div>
+<div id="ov"></div>
+<script>
+// ===== Sprout Vale core rules (DOM-free so it can be simulated) =====
+const COLS=8,ROWS=10,SEASON_DAYS=7,YEAR_DAYS=28;
+const SEASONS=['Spring','Summer','Autumn','Winter'];
+const CROPS={
+ turnip:{name:'Turnip',season:0,cost:20,days:4,sell:60,col:'#f3e9ff',leaf:'#7fd36a'},
+ berry:{name:'Starberry',season:0,cost:70,days:7,regrow:3,sell:70,col:'#ff4d6d',leaf:'#4fbf5a'},
+ corn:{name:'Sun Corn',season:1,cost:50,days:8,regrow:3,sell:66,col:'#ffd23f',leaf:'#6cc24a'},
+ melon:{name:'Moon Melon',season:1,cost:90,days:9,sell:330,col:'#9be15d',leaf:'#3f9d3a'},
+ pumpkin:{name:'Ember Gourd',season:2,cost:100,days:10,sell:390,col:'#ff8c1a',leaf:'#5c9e31'},
+ cran:{name:'Bogberry',season:2,cost:75,days:6,regrow:3,sell:62,col:'#c2185b',leaf:'#4a8f3c'},
+ pea:{name:'Frost Pea',season:3,cost:35,days:5,sell:110,col:'#bdf2ff',leaf:'#66c0b0'},
+ kale:{name:'Snow Kale',season:3,cost:50,days:6,regrow:3,sell:60,col:'#a0e8c8',leaf:'#3a9e86'}
+};
+const SHOP={
+ can:{name:'Copper Can (holds 40)',cost:350,max:1},
+ energy:{name:'Hearty Stew (+30 max energy)',cost:220,max:2},
+ sprinkler:{name:'Sprinkler (waters 8 tiles around it)',cost:150,max:6},
+ scare:{name:'Scarecrow (stops crows, radius 3)',cost:120,max:4},
+ chicken:{name:'Chicken (lays 1 egg/day, 40g)',cost:300,max:4}
+};
+const COST={till:3,water:1,plant:1,clear:2};
+function rng(seed){let s=seed>>>0||1;return()=>{s^=s<<13;s>>>=0;s^=s>>>17;s^=s<<5;s>>>=0;return s/4294967296}}
+function idx(x,y){return y*COLS+x}
+function tile(S,x,y){return(x<0||y<0||x>=COLS||y>=ROWS)?null:S.grid[idx(x,y)]}
+function season(S){return Math.min(3,Math.floor((S.day-1)/SEASON_DAYS))}
+function dayOfSeason(S){return(S.day-1)%SEASON_DAYS+1}
+function newGame(seed){
+ const S={seed:seed||Date.now()%1e9,day:1,gold:500,maxEn:100,en:100,time:360,can:20,canMax:20,
+  grid:[],inv:{},chickens:0,upg:{can:0,energy:0,sprinkler:0,scare:0,chicken:0},earned:0,weather:'sun',
+  tomorrow:'sun',order:null,over:false,stats:{harvests:0,orders:0,crowLoss:0,eggs:0}};
+ S.r=rng(S.seed);
+ for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){
+  const t={x,y,k:'grass',w:false,crop:null,age:0,obj:null,dead:false};
+  if(S.r()<0.18&&!(x>=2&&x<=5&&y>=3&&y<=6))t.k='rock';
+  S.grid.push(t)}
+ for(const[x,y]of[[0,0],[1,0],[0,1]])S.grid[idx(x,y)].k='pond';
+ newOrder(S);rollWeather(S);
+ return S}
+function rollWeather(S){const s=season(S),r=S.r();
+ S.tomorrow=s===3?(r<.25?'snow':'sun'):(r<(s===1?.18:.28)?(r<.05?'storm':'rain'):'sun')}
+function newOrder(S){const s=season(S);const ks=Object.keys(CROPS).filter(k=>CROPS[k].season===s);
+ const k=ks[Math.floor(S.r()*ks.length)];S.order={crop:k,qty:3+Math.floor(S.r()*4),days:4}}
+function spend(S,n){if(S.en<n)return false;S.en-=n;S.time+=n*4;return true}
+// tool: hoe|water|seed:<crop>|hand|scare|sprinkler
+function act(S,tool,x,y){
+ const t=tile(S,x,y);if(!t||S.over)return{ok:false};
+ if(t.k==='pond'){if(tool==='water'){S.can=S.canMax;return{ok:true,fx:'splash',msg:'Can refilled'}}return{ok:false}}
+ if(t.crop&&!t.dead&&t.age>=CROPS[t.crop].days){
+  const k=t.crop,c=CROPS[k],n=1+(S.r()<.15?1:0);S.inv[k]=(S.inv[k]||0)+n;S.stats.harvests++;S.time+=2;
+  if(c.regrow){t.age=c.days-c.regrow}else{t.crop=null;t.age=0}
+  return{ok:true,fx:'harvest',crop:k,n,msg:'+'+n+' '+c.name}}
+ if(tool==='hoe'){
+  if(t.k==='rock'){if(!spend(S,COST.clear*2))return{ok:false,msg:'Too tired'};t.k='grass';return{ok:true,fx:'rock'}}
+  if(t.obj){t.obj=null;return{ok:true,fx:'place',msg:'Picked up'}}
+  if(t.k==='grass'){if(!spend(S,COST.till))return{ok:false,msg:'Too tired'};t.k='soil';return{ok:true,fx:'till'}}
+  if(t.k==='soil'&&t.dead){t.crop=null;t.dead=false;t.age=0;return{ok:true,fx:'till'}}
+  return{ok:false}}
+ if(tool==='water'){
+  if(t.k!=='soil'||t.w)return{ok:false};if(S.can<=0)return{ok:false,msg:'Can empty - tap the pond'};
+  if(!spend(S,COST.water))return{ok:false,msg:'Too tired'};S.can--;t.w=true;return{ok:true,fx:'water'}}
+ if(tool.startsWith('seed:')){
+  const k=tool.slice(5),c=CROPS[k];
+  if(t.k!=='soil'||t.crop)return{ok:false};
+  if(c.season!==season(S))return{ok:false,msg:c.name+' only grows in '+SEASONS[c.season]};
+  if(S.gold<c.cost)return{ok:false,msg:'Not enough gold'};
+  if(!spend(S,COST.plant))return{ok:false,msg:'Too tired'};
+  S.gold-=c.cost;t.crop=k;t.age=0;t.dead=false;return{ok:true,fx:'plant'}}
+ if(tool==='sprinkler'||tool==='scare'){
+  if(t.k!=='grass'||t.obj)return{ok:false,msg:'Place on empty grass'};
+  const placed=S.grid.filter(g=>g.obj===tool).length;if(placed>=S.upg[tool])return{ok:false,msg:'Buy one in the shop first'};
+  t.obj=tool;return{ok:true,fx:'place'}}
+ return{ok:false}}
+function buy(S,k){const it=SHOP[k];if(S.upg[k]>=it.max||S.gold<it.cost)return false;S.gold-=it.cost;S.upg[k]++;
+ if(k==='can'){S.canMax=40;S.can=40}if(k==='energy'){S.maxEn+=30;S.en+=30}if(k==='chicken')S.chickens++;return true}
+function scareCovered(S,t){return S.grid.some(g=>g.obj==='scare'&&Math.max(Math.abs(g.x-t.x),Math.abs(g.y-t.y))<=3)}
+function sleep(S,passedOut){
+ const R={sold:[],income:0,order:null,crow:null,storm:null,eggs:0,penalty:0,newSeason:false,orderMissed:false};
+ if(S.order&&(S.inv[S.order.crop]||0)>=S.order.qty){const c=CROPS[S.order.crop],g=c.sell*S.order.qty*2;
+  S.inv[S.order.crop]-=S.order.qty;R.income+=g;R.order={name:c.name,qty:S.order.qty,g};S.stats.orders++;S.order=null}
+ for(const k in S.inv){if(S.inv[k]>0){const g=S.inv[k]*CROPS[k].sell;R.sold.push([CROPS[k].name,S.inv[k],g]);R.income+=g;S.inv[k]=0}}
+ R.eggs=S.chickens;S.stats.eggs+=R.eggs;R.income+=R.eggs*40;
+ if(passedOut){R.penalty=Math.round(S.gold*.1);S.gold-=R.penalty}
+ S.gold+=R.income;S.earned+=R.income;
+ for(const t of S.grid){if(t.k!=='soil')continue;if(t.crop&&!t.dead&&t.w)t.age++;t.w=false}
+ S.day++;
+ if(S.day>YEAR_DAYS){S.over=true;return R}
+ R.newSeason=dayOfSeason(S)===1;
+ if(R.newSeason)for(const t of S.grid)if(t.crop&&CROPS[t.crop].season!==season(S))t.dead=true;
+ S.weather=S.tomorrow;
+ if(S.weather!=='sun')for(const t of S.grid)if(t.k==='soil')t.w=true;
+ for(const s of S.grid)if(s.obj==='sprinkler')for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const t=tile(S,s.x+dx,s.y+dy);if(t&&t.k==='soil')t.w=true}
+ if(S.day>3&&S.r()<.22){const ex=S.grid.filter(t=>t.crop&&!t.dead&&t.age>0&&!scareCovered(S,t));
+  if(ex.length){const t=ex[Math.floor(S.r()*ex.length)];R.crow={x:t.x,y:t.y,name:CROPS[t.crop].name};t.crop=null;t.age=0;S.stats.crowLoss++}}
+ if(S.weather==='storm'&&S.r()<.5){const ex=S.grid.filter(t=>t.crop&&!t.dead);
+  if(ex.length){const t=ex[Math.floor(S.r()*ex.length)];R.storm=CROPS[t.crop].name;t.crop=null;t.age=0}}
+ if(S.order){S.order.days--;if(S.order.days<=0){R.orderMissed=true;S.order=null}}
+ if(!S.order||R.newSeason)newOrder(S);
+ rollWeather(S);
+ S.en=passedOut?Math.round(S.maxEn*.6):S.maxEn;S.time=360;
+ return R}
+function score(S){return S.gold}
+function medal(sc){return sc>=9000?'Golden Harvest':sc>=6000?'Silver Sickle':sc>=3500?'Bronze Basket':'Sprout'}
+// ===== Rendering =====
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+let W=0,H=0,DPR=1,TS=40,OX=0,OY=0,S=null,tool='hoe',seedSel='turnip',placeSel='sprinkler',parts=[],floats=[],shake=0,tNow=0;
+const deco=[];for(let i=0;i<60;i++)deco.push({x:Math.random(),y:Math.random(),s:Math.random(),c:Math.random()});
+function resize(){DPR=Math.min(2,devicePixelRatio||1);W=innerWidth;H=innerHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0);
+ const top=58,bot=document.getElementById('bar').offsetHeight+34;TS=Math.floor(Math.min((W-16)/COLS,(H-top-bot)/ROWS));OX=(W-TS*COLS)/2;OY=top+28+((H-top-bot)-TS*ROWS)/2}
+addEventListener('resize',resize);
+const SEAS_GRASS=[['#5cc25a','#4fae4d'],['#7cc93f','#69b236'],['#c9a43c','#b38c30'],['#e8f2f7','#d3e3ec']];
+function lighting(){if(!S)return 0;const t=S.time;return t<420?.35*(1-(t-360)/60):t<1080?0:Math.min(.62,(t-1080)/360*.62)}
+function drawTile(t){const x=OX+t.x*TS,y=OY+t.y*TS,s=season(S),g=SEAS_GRASS[s];
+ cx.fillStyle=(t.x+t.y)%2?g[0]:g[1];cx.fillRect(x,y,TS+.5,TS+.5);
+ if(t.k==='pond'){const gr=cx.createLinearGradient(x,y,x,y+TS);gr.addColorStop(0,s===3?'#bfe6ff':'#3fb7e8');gr.addColorStop(1,s===3?'#8cc8ee':'#1e6fb8');cx.fillStyle=gr;cx.fillRect(x+1,y+1,TS-2,TS-2);
+  cx.strokeStyle='#ffffff55';cx.lineWidth=1.5;for(let i=0;i<2;i++){const o=(tNow*20+i*TS/2+t.x*13)%TS;cx.beginPath();cx.arc(x+TS/2,y+TS/2,o/2,0,6.28);cx.stroke()}return}
+ if(t.k==='rock'){cx.fillStyle='#0003';cx.beginPath();cx.ellipse(x+TS/2,y+TS*.72,TS*.34,TS*.12,0,0,6.28);cx.fill();
+  const gr=cx.createRadialGradient(x+TS*.4,y+TS*.35,2,x+TS/2,y+TS/2,TS*.4);gr.addColorStop(0,'#c8c4bc');gr.addColorStop(1,'#6e6a64');cx.fillStyle=gr;
+  cx.beginPath();cx.moveTo(x+TS*.18,y+TS*.7);cx.lineTo(x+TS*.28,y+TS*.32);cx.lineTo(x+TS*.55,y+TS*.2);cx.lineTo(x+TS*.8,y+TS*.4);cx.lineTo(x+TS*.84,y+TS*.7);cx.closePath();cx.fill();return}
+ if(t.k==='soil'){cx.fillStyle=t.w?'#4a2f1d':'#8a5a36';cx.fillRect(x+2,y+2,TS-4,TS-4);cx.fillStyle=t.w?'#3a2416':'#734a2b';
+  for(let i=0;i<3;i++)cx.fillRect(x+4,y+6+i*TS*.3,TS-8,2);
+  if(t.w){cx.fillStyle='#7fd0ff22';cx.fillRect(x+2,y+2,TS-4,TS-4)}}
+ if(t.crop)drawCrop(t,x,y);
+ if(t.obj==='sprinkler'){cx.fillStyle='#9aa7b4';cx.fillRect(x+TS*.42,y+TS*.4,TS*.16,TS*.4);cx.fillStyle='#cfe3f3';cx.beginPath();cx.arc(x+TS/2,y+TS*.38,TS*.16,0,6.28);cx.fill();
+  cx.fillStyle='#5ad1ff';cx.beginPath();cx.arc(x+TS/2,y+TS*.38,TS*.07,0,6.28);cx.fill()}
+ if(t.obj==='scare'){cx.strokeStyle='#7a4b22';cx.lineWidth=TS*.07;cx.beginPath();cx.moveTo(x+TS/2,y+TS*.9);cx.lineTo(x+TS/2,y+TS*.2);cx.moveTo(x+TS*.2,y+TS*.42);cx.lineTo(x+TS*.8,y+TS*.42);cx.stroke();
+  cx.fillStyle='#d94b3d';cx.fillRect(x+TS*.36,y+TS*.38,TS*.28,TS*.26);cx.fillStyle='#f4d58a';cx.beginPath();cx.arc(x+TS/2,y+TS*.24,TS*.12,0,6.28);cx.fill();
+  cx.fillStyle='#b88a3a';cx.fillRect(x+TS*.3,y+TS*.1,TS*.4,TS*.06)}}
+function drawCrop(t,x,y){const c=CROPS[t.crop],p=Math.min(1,t.age/c.days),cxm=x+TS/2,by=y+TS*.82,sw=Math.sin(tNow*2+t.x+t.y)*TS*.03;
+ if(t.dead){cx.strokeStyle='#6b5a3a';cx.lineWidth=2;cx.beginPath();cx.moveTo(cxm,by);cx.lineTo(cxm-4,by-TS*.3);cx.moveTo(cxm,by);cx.lineTo(cxm+5,by-TS*.25);cx.stroke();return}
+ const h=TS*(.15+.45*p);cx.strokeStyle=c.leaf;cx.lineWidth=Math.max(2,TS*.06);cx.lineCap='round';
+ cx.beginPath();cx.moveTo(cxm,by);cx.quadraticCurveTo(cxm+sw,by-h/2,cxm+sw*2,by-h);cx.stroke();
+ cx.fillStyle=c.leaf;for(let i=0;i<1+Math.floor(p*3);i++){const ly=by-h*(.3+i*.22),d=i%2?1:-1;cx.beginPath();cx.ellipse(cxm+d*TS*.12+sw,ly,TS*.12,TS*.05,d*.6,0,6.28);cx.fill()}
+ if(p>=1){const r=TS*.17,fy=by-h*.75;cx.save();cx.shadowColor=c.col;cx.shadowBlur=10+Math.sin(tNow*4)*5;
+  const gr=cx.createRadialGradient(cxm-r*.3+sw,fy-r*.3,1,cxm+sw,fy,r);gr.addColorStop(0,'#fff');gr.addColorStop(.35,c.col);gr.addColorStop(1,shade(c.col));cx.fillStyle=gr;
+  cx.beginPath();cx.arc(cxm+sw,fy,r,0,6.28);cx.fill();cx.restore();
+  if(Math.random()<.02)parts.push({x:cxm+(Math.random()-.5)*TS*.6,y:fy,vx:0,vy:-12,l:1,c:'#fff7b0',s:2})}
+ else if(p>.5){cx.fillStyle=c.col+'99';cx.beginPath();cx.arc(cxm+sw,by-h*.75,TS*.08*p,0,6.28);cx.fill()}}
+function shade(h){const n=parseInt(h.slice(1),16);const r=(n>>16)*.55,g=(n>>8&255)*.55,b=(n&255)*.55;return'rgb('+r+','+g+','+b+')'}
+function drawWeather(dt){const w=S.weather;if(w==='rain'||w==='storm'){cx.strokeStyle='#bfe3ff88';cx.lineWidth=1.2;cx.beginPath();
+  for(let i=0;i<(w==='storm'?140:80);i++){const x=(i*97+tNow*90*(1+i%3))%W,y=(i*53+tNow*600)%H;cx.moveTo(x,y);cx.lineTo(x-4,y+14)}cx.stroke();
+  if(w==='storm'&&Math.random()<.004){flash=1;snd('thunder')}}
+ if(w==='snow'){cx.fillStyle='#fff';for(let i=0;i<90;i++){const x=(i*71+Math.sin(tNow+i)*20)%W,y=(i*37+tNow*40*(1+i%2))%H;cx.beginPath();cx.arc(x,y,1.5+i%3,0,6.28);cx.fill()}}
+ if(w==='sun'&&season(S)<3&&S.time<1100){for(let i=0;i<5;i++){const x=OX+((i*131+tNow*25)%(TS*COLS)),y=OY+TS*ROWS*(.2+.15*i)+Math.sin(tNow*3+i)*12;
+  cx.fillStyle=['#ffe066','#ff9ad5','#9ad0ff','#fff'][i%4];const f=Math.abs(Math.sin(tNow*12+i))*5+1;cx.beginPath();cx.ellipse(x-f/2,y,f,4,0,0,6.28);cx.ellipse(x+f/2,y,f,4,0,0,6.28);cx.fill()}}}
+let flash=0;
+// ===== Frame, particles, audio =====
+let last=performance.now(),paused=true;
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;tNow+=dt;
+ const g=cx.createLinearGradient(0,0,0,H);const sk=[['#8fd8ff','#c9f0d0'],['#6fc8ff','#f4f0a8'],['#f0a868','#f6d8a0'],['#a8c4dc','#eef4f8']][S?season(S):0];
+ g.addColorStop(0,sk[0]);g.addColorStop(1,sk[1]);cx.fillStyle=g;cx.fillRect(0,0,W,H);
+ if(S){cx.save();if(shake>0){cx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.85;if(shake<.3)shake=0}
+  cx.fillStyle='#0004';cx.fillRect(OX-6,OY-6,TS*COLS+12,TS*ROWS+12);
+  cx.strokeStyle='#8a5a2c';cx.lineWidth=5;cx.strokeRect(OX-5,OY-5,TS*COLS+10,TS*ROWS+10);
+  for(const t of S.grid)drawTile(t);
+  if(hoverT){cx.strokeStyle='#fff';cx.lineWidth=2;cx.strokeRect(OX+hoverT.x*TS+1,OY+hoverT.y*TS+1,TS-2,TS-2)}
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.l-=dt*(p.d||1.2);p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=(p.g||0)*dt;if(p.l<=0){parts.splice(i,1);continue}
+   cx.globalAlpha=Math.max(0,p.l);cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x,p.y,p.s,0,6.28);cx.fill()}
+  cx.globalAlpha=1;cx.textAlign='center';cx.font='800 16px system-ui';
+  for(let i=floats.length-1;i>=0;i--){const f=floats[i];f.l-=dt;f.y-=28*dt;if(f.l<=0){floats.splice(i,1);continue}
+   cx.globalAlpha=Math.min(1,f.l*2);cx.fillStyle='#000a';cx.fillText(f.t,f.x+1,f.y+2);cx.fillStyle=f.c;cx.fillText(f.t,f.x,f.y)}
+  cx.globalAlpha=1;cx.restore();
+  drawWeather(dt);
+  const L=lighting();if(L>0){cx.fillStyle='rgba(18,22,70,'+L+')';cx.fillRect(0,0,W,H);
+   if(L>.3){cx.globalCompositeOperation='lighter';for(let i=0;i<14;i++){const x=OX+((i*97+Math.sin(tNow*.7+i)*40)%(TS*COLS)),y=OY+((i*61+Math.cos(tNow*.5+i)*30)%(TS*ROWS));
+    cx.fillStyle='rgba(220,255,120,'+(.4+.4*Math.sin(tNow*3+i))*L+')';cx.beginPath();cx.arc(x,y,2.5,0,6.28);cx.fill()}cx.globalCompositeOperation='source-over'}}
+  if(flash>0){cx.fillStyle='rgba(255,255,255,'+flash+')';cx.fillRect(0,0,W,H);flash-=dt*3}
+  // order banner
+  cx.font='700 13px system-ui';cx.textAlign='center';const ob=S.order?('Order: '+S.order.qty+' '+CROPS[S.order.crop].name+' ('+S.order.days+'d, pays x2) - have '+(S.inv[S.order.crop]||0)):'Order board: new order tomorrow';
+  cx.fillStyle='#0008';const tw=cx.measureText(ob).width+20;cx.fillRect(W/2-tw/2,OY-30,tw,22);cx.fillStyle='#ffe9a8';cx.fillText(ob,W/2,OY-14);
+  if(!paused&&!S.over){S.time+=dt*8.3;if(S.time>=1560){doSleep(true)}else if(S.time>=1440&&!warned){warned=true;toast('Midnight! Go to bed before 2am or you pass out');snd('warn')}}
+  hud()}
+ requestAnimationFrame(frame)}
+let warned=false;
+function burst(tx,ty,c,n,sp){const x=OX+tx*TS+TS/2,y=OY+ty*TS+TS/2;for(let i=0;i<n;i++){const a=Math.random()*6.28,v=(sp||60)*(.4+Math.random());
+ parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-30,g:160,l:1,c,s:1.5+Math.random()*2.5})}if(parts.length>700)parts.splice(0,parts.length-700)}
+// Audio (Web Audio, all synthesized)
+let AC=null,master=null,musicOn=true;
+function initAudio(){if(AC)return;try{const A=window.AudioContext||window.webkitAudioContext;if(!A)return;AC=new A();master=AC.createGain();master.gain.value=.5;master.connect(AC.destination);startMusic()}catch(e){AC=null}}
+function tone(f,d,type,v,when,slide){if(!AC)return;const t=AC.currentTime+(when||0),o=AC.createOscillator(),g=AC.createGain();o.type=type||'sine';o.frequency.setValueAtTime(f,t);
+ if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v||.2,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g);g.connect(master);o.start(t);o.stop(t+d+.05)}
+function noise(d,v,fq,when){if(!AC)return;const t=AC.currentTime+(when||0),b=AC.createBuffer(1,AC.sampleRate*d,AC.sampleRate),a=b.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1;
+ const s=AC.createBufferSource(),f=AC.createBiquadFilter(),g=AC.createGain();s.buffer=b;f.type='lowpass';f.frequency.value=fq||1200;g.gain.setValueAtTime(v||.2,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);s.connect(f);f.connect(g);g.connect(master);s.start(t)}
+function snd(k){if(!AC)return;switch(k){case'till':noise(.15,.3,600);tone(110,.12,'triangle',.15);break;case'water':noise(.25,.15,3000);tone(900,.15,'sine',.05,0,500);break;
+ case'plant':tone(520,.1,'sine',.15);tone(780,.12,'sine',.12,.06);break;case'harvest':[660,880,1320].forEach((f,i)=>tone(f,.18,'triangle',.15,i*.05));break;
+ case'rock':noise(.2,.4,400);tone(80,.2,'square',.1);break;case'coin':tone(988,.08,'square',.08);tone(1319,.25,'square',.08,.08);break;
+ case'bad':tone(220,.25,'sawtooth',.1,0,110);break;case'warn':tone(440,.2,'triangle',.15);tone(440,.2,'triangle',.15,.3);break;
+ case'thunder':noise(1.5,.5,180);break;case'splash':noise(.4,.25,2000);break;case'place':tone(330,.1,'square',.08);tone(495,.12,'square',.08,.08);break;
+ case'night':[523,440,349,262].forEach((f,i)=>tone(f,.5,'sine',.15,i*.18));break}}
+const SCALES=[[0,2,4,7,9],[0,2,4,7,9],[0,3,5,7,10],[0,2,3,7,8]],ROOT=[262,294,220,196];
+function startMusic(){let step=0;const bpm=92,sp=60/bpm/2;let next=AC.currentTime+.1;
+ setInterval(()=>{if(!AC||!musicOn||AC.state!=='running')return;while(next<AC.currentTime+.4){const s=S?season(S):0,sc=SCALES[s],r=ROOT[s],night=S&&S.time>1080;
+  const deg=[0,2,4,2,3,1,4,0][(step>>1)%8]+(step%4===3?2:0),f=r*Math.pow(2,sc[deg%5]/12)*(deg>=5?2:1)*(night?.5:1);
+  if(step%2===0||Math.random()<.4)tone(f*2,sp*1.6,'triangle',.05,next-AC.currentTime);
+  if(step%8===0){tone(r/2,sp*7,'sine',.07,next-AC.currentTime);tone(r*Math.pow(2,sc[2]/12)/2,sp*7,'sine',.04,next-AC.currentTime)}
+  if(step%4===2&&!night)noise(.05,.03,6000,next-AC.currentTime);
+  step++;next+=sp}},120)}
+document.addEventListener('visibilitychange',()=>{if(!AC)return;document.hidden?AC.suspend():AC.resume()});
+// ===== Input, HUD, menus =====
+const $=id=>document.getElementById(id),ov=$('ov'),bar=$('bar');let hoverT=null,lastActT=null,down=false;
+function toast(m){const t=$('toast');t.textContent=m;t.style.opacity=1;clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.opacity=0,2200)}
+function hud(){$('hDay').textContent=SEASONS[season(S)]+' '+dayOfSeason(S)+' · '+clock(S.time)+' '+({sun:'☀',rain:'🌧',storm:'⛈',snow:'❄'}[S.weather]);
+ $('hGold').textContent=S.gold+'g';$('hEn').textContent='⚡'+Math.round(S.en)+'/'+S.maxEn;$('hEn').style.color=S.en<15?'#ff8a7a':'';
+ const wb=$('tb-water');if(wb)wb.querySelector('span').textContent='Water '+S.can}
+function clock(m){m=Math.floor(m);let h=Math.floor(m/60)%24,mm=m%60;mm=mm-mm%10;return((h%12)||12)+':'+(mm<10?'0':'')+mm+(h<12?'am':'pm')}
+const TOOLS=[['hoe','⛏','Hoe'],['water','💧','Water'],['seed','🌱','Seeds'],['place','🪧','Place'],['shop','🛒','Shop'],['sleep','🛏','Sleep']];
+function buildBar(){bar.innerHTML='';for(const[k,i,l]of TOOLS){const b=document.createElement('button');b.className='tb'+(tool===k||(k==='seed'&&tool.startsWith('seed'))||(k==='place'&&(tool==='sprinkler'||tool==='scare'))?' on':'');b.id='tb-'+k;
+ const lab=k==='seed'?CROPS[seedSel].name.split(' ').pop():k==='place'?(placeSel==='scare'?'Scarecrow':'Sprinkler'):l;
+ b.innerHTML='<b>'+i+'</b><span>'+lab+'</span>';b.onpointerdown=e=>{e.preventDefault();initAudio();pick(k)};bar.appendChild(b)}resize()}
+function pick(k){snd('place');if(k==='hoe'||k==='water'){tool=k}else if(k==='seed'){seedMenu();return}else if(k==='place'){placeMenu();return}else if(k==='shop'){shopMenu();return}else if(k==='sleep'){confirmSleep();return}buildBar()}
+function tileAt(px,py){const x=Math.floor((px-OX)/TS),y=Math.floor((py-OY)/TS);return tile(S,x,y)}
+function doAct(t){if(!t||paused||S.over)return;const r=act(S,tool,t.x,t.y);const X=OX+t.x*TS+TS/2,Y=OY+t.y*TS;
+ if(r.ok){snd(r.fx);
+  if(r.fx==='harvest'){burst(t.x,t.y,CROPS[r.crop].col,18,90);floats.push({x:X,y:Y,t:r.msg,c:'#fff3a0',l:1.2});
+   if(S.order&&r.crop===S.order.crop&&(S.inv[r.crop]||0)>=S.order.qty&&!S.orderToasted){S.orderToasted=true;toast('Order ready! It ships tonight for double pay')}}
+  else if(r.fx==='till'||r.fx==='rock'){burst(t.x,t.y,r.fx==='rock'?'#aaa':'#8a5a36',10,60);if(r.fx==='rock')shake=4}
+  else if(r.fx==='water'||r.fx==='splash')burst(t.x,t.y,'#7fd0ff',10,50);else burst(t.x,t.y,'#b6ff8a',8,40);
+  if(r.msg&&r.fx!=='harvest')toast(r.msg);
+  if(S.en<15&&!S.lowWarn){S.lowWarn=true;toast('Low energy - harvesting is free, sleep to recover')}}
+ else if(r.msg&&lastMsg!==r.msg){lastMsg=r.msg;toast(r.msg);snd('bad');setTimeout(()=>lastMsg='',1500)}}
+let lastMsg='';
+cv.addEventListener('pointerdown',e=>{initAudio();down=true;const t=tileAt(e.clientX,e.clientY);hoverT=t;lastActT=t;doAct(t)});
+cv.addEventListener('pointermove',e=>{if(!down)return;const t=tileAt(e.clientX,e.clientY);hoverT=t;if(t&&t!==lastActT){lastActT=t;doAct(t)}});
+addEventListener('pointerup',()=>{down=false;hoverT=null;lastActT=null});addEventListener('pointercancel',()=>{down=false;hoverT=null});
+function show(html){ov.innerHTML='<div class="card">'+html+'</div>';ov.style.display='flex';paused=true}
+function hide(){ov.style.display='none';paused=false;buildBar()}
+function seedMenu(){const s=season(S);let h='<h2>Seeds - '+SEASONS[s]+'</h2><p>Planting costs gold now; harvest when the crop glows. Watered crops grow 1 day per night.</p>';
+ for(const k in CROPS){const c=CROPS[k];if(c.season!==s)continue;const left=SEASON_DAYS-dayOfSeason(S)+1;
+  h+='<div class="row"><span><b style="color:'+c.col+'">'+c.name+'</b><br>'+c.cost+'g · '+c.days+' days'+(c.regrow?' · regrows every '+c.regrow:'')+' · sells '+c.sell+'g'+(c.days>=left?'<br><span style="color:#ffb08a">Won\'t ripen before '+SEASONS[(s+1)%4]+'</span>':'')+'</span><button onclick="seedSel=\''+k+'\';tool=\'seed:'+k+'\';hide()">Use</button></div>'}
+ show(h+'<button class="btn alt" onclick="hide()">Close</button>')}
+function placeMenu(){let h='<h2>Place</h2><p>Tap empty grass to place. Use the Hoe on a placed item to pick it up.</p>';
+ for(const k of['sprinkler','scare']){const n=S.upg[k]-S.grid.filter(g=>g.obj===k).length;h+='<div class="row"><span>'+SHOP[k].name+'<br>In bag: '+n+'</span><button onclick="placeSel=\''+k+'\';tool=\''+k+'\';hide()">Use</button></div>'}
+ show(h+'<button class="btn alt" onclick="hide()">Close</button>')}
+function shopMenu(){let h='<h2>General Store</h2><p>Gold: '+S.gold+'g</p>';
+ for(const k in SHOP){const it=SHOP[k];h+='<div class="row"><span>'+it.name+'<br>Owned '+S.upg[k]+'/'+it.max+'</span><button '+(S.upg[k]>=it.max||S.gold<it.cost?'disabled':'')+' onclick="if(buy(S,\''+k+'\')){snd(\'coin\');shopMenu()}">'+it.cost+'g</button></div>'}
+ show(h+'<button class="btn alt" onclick="hide()">Close</button>')}
+function confirmSleep(){show('<h2>Go to bed?</h2><p>Harvested crops in your bag ship overnight. Tomorrow: '+({sun:'sunny',rain:'rain (crops get watered)',storm:'storm - may flatten a crop',snow:'snow (crops get watered)'}[S.tomorrow])+'.</p><button class="btn" onclick="doSleep(false)">Sleep</button><button class="btn alt" onclick="hide()">Not yet</button>')}
+function doSleep(out){paused=true;snd('night');const R=sleep(S,out);warned=false;S.orderToasted=false;S.lowWarn=false;save();
+ let h='<h2>'+(out?'You passed out...':'Good night')+'</h2>';
+ if(R.order)h+='<p>📜 Order filled: '+R.order.qty+' '+R.order.name+' <b>+'+R.order.g+'g</b></p>';
+ for(const[n,q,g]of R.sold)h+='<p>'+q+' × '+n+' <b>+'+g+'g</b></p>';if(R.eggs)h+='<p>🥚 '+R.eggs+' eggs <b>+'+R.eggs*40+'g</b></p>';
+ if(!R.income)h+='<p>Nothing shipped tonight.</p>';if(R.penalty)h+='<p style="color:#ff9a8a">The doctor charged '+R.penalty+'g. You wake with less energy.</p>';
+ if(R.crow)h+='<p style="color:#ff9a8a">🐦 A crow ate your '+R.crow.name+'. Scarecrows stop that.</p>';if(R.storm)h+='<p style="color:#ff9a8a">⛈ The storm flattened a '+R.storm+'.</p>';
+ if(R.orderMissed)h+='<p style="color:#ffb08a">The order expired.</p>';
+ if(S.over){gameOver();return}
+ if(R.newSeason){seedSel=Object.keys(CROPS).find(k=>CROPS[k].season===season(S));if(tool.startsWith('seed'))tool='seed:'+seedSel}
+ if(R.newSeason)h+='<p style="color:#ffe9a8"><b>'+SEASONS[season(S)]+' has arrived!</b> Last season\'s crops withered - clear them with the Hoe. New seeds are in stock.</p>';
+ show(h+'<button class="btn" onclick="hide()">Start '+SEASONS[season(S)]+' '+dayOfSeason(S)+'</button>')}
+// ===== Save, title, end =====
+function save(){try{const o=Object.assign({},S);delete o.r;localStorage.setItem('sv_save',JSON.stringify(o))}catch(e){}}
+function load(){try{const o=JSON.parse(localStorage.getItem('sv_save'));if(!o||o.over)return null;o.r=rng(o.seed+o.day*7777);return o}catch(e){return null}}
+function best(){return+(localStorage.getItem('sv_best')||0)}
+function title(){paused=true;const sv=load();
+ show('<h1>🌱 Sprout Vale</h1><p style="text-align:center">One year. Eight acres of overgrown land. Grow it into the finest farm in the valley.</p>'+
+ '<p>⛏ Hoe grass into soil and smash rocks · 🌱 plant seeds · 💧 water every day (refill at the pond) · tap glowing crops to harvest · 🛏 sleep to ship your harvest.</p><p><b>Tip:</b> drag your finger across tiles to till, plant or water a whole row at once.</p>'+
+ '<p style="text-align:center">Best year: <b>'+best()+'g</b></p>'+
+ (sv?'<button class="btn" onclick="S=load();hide();toast(\'Welcome back!\')">Continue - '+SEASONS[season(sv)]+' '+dayOfSeason(sv)+'</button>':'')+
+ '<button class="btn '+(sv?'alt':'')+'" onclick="S=newGame();tool=\'hoe\';seedSel=\'turnip\';hide();toast(\'Clear a patch, till it and plant turnips!\')">New Farm</button>'+
+ '<button class="btn alt" onclick="musicOn=!musicOn;this.textContent=\'Music: \'+(musicOn?\'On\':\'Off\')">Music: '+(musicOn?'On':'Off')+'</button>')}
+function gameOver(){const sc=score(S),b=best(),nb=sc>b;if(nb)localStorage.setItem('sv_best',sc);localStorage.removeItem('sv_save');
+ show('<h1>Year complete!</h1><p style="text-align:center;font-size:18px">Final savings: <b>'+sc+'g</b></p><p style="text-align:center;font-size:20px;color:#ffd25a">🏅 '+medal(sc)+'</p>'+
+ (nb?'<p style="text-align:center">New best year!</p>':'<p style="text-align:center">Best: '+b+'g</p>')+
+ '<p>Harvests: '+S.stats.harvests+' · Orders filled: '+S.stats.orders+' · Eggs: '+S.stats.eggs+' · Crops lost to crows: '+S.stats.crowLoss+'</p>'+
+ '<p>Medals: Bronze Basket 3,500g · Silver Sickle 6,000g · Golden Harvest 9,000g</p><button class="btn" onclick="title()">Play again</button>');
+ for(let i=0;i<5;i++)setTimeout(()=>{snd('harvest')},i*200)}
+S=newGame(1);buildBar();resize();title();requestAnimationFrame(frame);
+setInterval(()=>{if(S&&!paused&&!S.over)save()},5000);
+</script></body></html>
