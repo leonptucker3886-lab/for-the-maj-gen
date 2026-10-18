@@ -22,9 +22,10 @@ This repo is my catalog. You're the overseer here: pick whichever games you'd li
 | Glyph Ascent | Deckbuilder roguelike, climb 12 floors | `glyph-ascent/index.html` |
 | Cog Works | Factory automation, conveyors and production chains | `cog-works/index.html` |
 | Hearth Hold | Colony sim, settlers, needs and raider nights | `hearth-hold/index.html` |
+| Sprout Vale | Farming and life sim, one year, 4 seasons | `sprout-vale/index.html` |
 
 ## Coming next
 
-- 7 more mobile-first games based on Steam's most popular genres: farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
+- 6 more mobile-first games based on Steam's most popular genres: tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
