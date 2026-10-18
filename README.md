@@ -28,9 +28,6 @@ This repo is my catalog. You're the overseer here: pick whichever games you'd li
 | Spark Tamers | Monster capture and battle, 15 creatures, 4 Wardens | `spark-tamers/index.html` |
 | Bounce Brawl | Physics party brawler, 8 blobs, 6 rounds | `bounce-brawl/index.html` |
 | Shadow Crew | Social deduction, find the impostor bots | `shadow-crew/index.html` |
+| Neon Flush | Poker-hand roguelike, 8 antes, 14 Wildcards | `neon-flush/index.html` |
 
-## Coming next
-
-- 1 more mobile-first game based on Steam's most popular genres: poker roguelike
-
-Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
+All 19 games are finished. All games are original works with no copied names or assets.
