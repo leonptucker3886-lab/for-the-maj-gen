@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#070914"><title>Cog Works</title>
+<style>*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}html,body{margin:0;height:100%;overflow:hidden;background:#070914;color:#e8eeff;font-family:system-ui,sans-serif;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+#top{position:fixed;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 6px) 10px 6px;display:flex;align-items:center;gap:8px;background:linear-gradient(#070914ee,#07091400)}
+#money{font:800 22px system-ui;color:#2dff9a;text-shadow:0 0 10px #2dff9a}#rate{font-size:12px;opacity:.7}
+#goal{position:relative;flex:1;font-size:12px;background:#111836;border:1px solid #2a3a7a;border-radius:10px;padding:5px 8px;overflow:hidden}#goal span{float:right}#goal i{position:absolute;left:0;bottom:0;height:3px;background:#ffd23f;box-shadow:0 0 8px #ffd23f}
+.ib{width:40px;height:40px;border-radius:12px;border:1px solid #2a3a7a;background:#111836;color:#fff;font-size:18px}
+#bar{position:fixed;left:0;right:0;bottom:0;padding:8px 6px calc(env(safe-area-inset-bottom) + 8px);display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:linear-gradient(#07091400,#070914 30%)}
+.tb{height:58px;border-radius:14px;border:2px solid #24305f;background:#10162e;color:#fff;font-size:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.tb b{font-size:20px}.tb small{opacity:.65}.tb.on{border-color:var(--c);box-shadow:0 0 14px var(--c),inset 0 0 12px var(--c)}
+#rot{font-size:26px!important}#msg{position:fixed;left:50%;top:70px;transform:translateX(-50%);background:#1a2250;border:1px solid #4a6aff;padding:8px 14px;border-radius:20px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+.ov{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(#141c44,#070914);padding:24px;text-align:center;gap:14px;z-index:5}
+.ov h1{font-size:46px;margin:0;color:#ffd23f;text-shadow:0 0 20px #ff8a00,0 0 40px #ff5a36;letter-spacing:2px}.ov p{max-width:340px;opacity:.85;line-height:1.45;margin:0}
+.big{width:240px;height:56px;border-radius:16px;border:0;font:800 18px system-ui;background:linear-gradient(90deg,#ffd23f,#ff7a2f);color:#1a0d00;box-shadow:0 0 20px #ff8a0088}.big.s{background:#1a2250;color:#fff;border:1px solid #4a6aff}
+#how{display:none;text-align:left}#how div{max-width:360px;font-size:14px;line-height:1.5;background:#0f1530;border:1px solid #2a3a7a;border-radius:14px;padding:14px;max-height:70vh;overflow:auto}
+</style></head><body><canvas id="c"></canvas>
+<div id="top"><div><div id="money">$0</div><div id="rate">$0/s</div></div><div id="goal"></div><button class="ib" id="mus">♪</button><button class="ib" id="help">?</button></div>
+<div id="msg"></div>
+<div id="bar">
+<button class="tb" data-t="belt" style="--c:#3af"><b>➜</b>Belt<small>$2</small></button>
+<button class="tb" data-t="miner" style="--c:#ffd23f"><b>⛏</b>Miner<small>$30</small></button>
+<button class="tb" data-t="smelter" style="--c:#ff5a36"><b>♨</b>Smelter<small>$60</small></button>
+<button class="tb" data-t="assembler" style="--c:#b46bff"><b>⚙</b>Assembler<small>$150</small></button>
+<button class="tb" data-t="seller" style="--c:#2dff9a"><b>$</b>Seller<small>$40</small></button>
+<button class="tb" id="rot" style="--c:#fff">→</button>
+<button class="tb" data-t="del" style="--c:#ff4466"><b>✖</b>Remove<small>50% back</small></button>
+<button class="tb" style="--c:#fff;visibility:hidden"></button>
+</div>
+<div class="ov" id="menu"><h1>COG WORKS</h1><p>Mine glowing ore, smelt it, assemble gears and circuits, and sell them. Build a neon factory one conveyor at a time.</p><button class="big" id="cont">Continue Factory</button><button class="big s" id="newg">New Factory</button></div>
+<div class="ov" id="how"><div><b>How to play</b><br>• Pick a part in the bar, then tap a tile. The arrow button sets the direction new parts face. Tap a placed part with the same tool to turn it.<br>• Drag with the Belt tool to draw conveyors.<br>• ⛏ Miners sit on ore and push it out the way they face.<br>• ♨ Smelters turn ore into plates.<br>• ⚙ Assemblers: 2 iron plates → gear; 1 iron + 2 copper plates → circuit (circuits come first when both are possible).<br>• $ Sellers buy anything: ore $1, plates $4, gears $10, circuits $28.<br>• Finish all 6 goals for big bonuses. Your factory auto-saves.</div><button class="big" id="howx">Back to work</button></div>
+<script>
+// ---- Cog Works core sim (shared by game + headless audit) ----
+const W=12,H=16,DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
+const COST={belt:2,miner:30,smelter:60,assembler:150,seller:40};
+const PRICE={iron:1,copper:1,ironp:4,copperp:4,gear:10,circuit:28};
+const RECIPE={smelter:[{in:{iron:1},out:'ironp',t:1.6},{in:{copper:1},out:'copperp',t:1.6}],
+ assembler:[{in:{ironp:2},out:'gear',t:2.4},{in:{ironp:1,copperp:2},out:'circuit',t:3.2}]};
+const GOALS=[{item:'ironp',n:10},{item:'copperp',n:10},{item:'gear',n:15},{item:'circuit',n:10},{item:'circuit',n:40},{item:'circuit',n:120}];
+function rng(s){return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296}}
+function newWorld(seed){const r=rng(seed||7),g=[];for(let y=0;y<H;y++){g.push([]);for(let x=0;x<W;x++)g[y].push({ore:null,b:null})}
+ const vein=(t,cx,cy)=>{for(let i=0;i<9;i++){const x=cx+Math.floor(r()*3)-1,y=cy+Math.floor(r()*3)-1;if(x>=0&&y>=0&&x<W&&y<H)g[y][x].ore=t}};
+ vein('iron',2,3);vein('copper',9,3);vein('iron',2,12);vein('copper',9,12);
+ return{g,money:150,t:0,sold:{},goal:0,earned:0,items:[],power:0}}
+function place(w,x,y,type,dir){const c=w.g[y]&&w.g[y][x];if(!c||c.b)return false;if(type==='miner'&&!c.ore)return false;
+ const cost=COST[type];if(w.money<cost)return false;w.money-=cost;c.b={type,dir:dir||0,inv:{},hold:null,prog:0,rec:0,t:0};return true}
+function remove(w,x,y){const c=w.g[y][x];if(!c.b)return;w.money+=Math.floor(COST[c.b.type]*.5);c.b=null}
+function out(w,x,y,b,item){const[dx,dy]=DIRS[b.dir],c=w.g[y+dy]&&w.g[y+dy][x+dx];if(!c||!c.b)return false;return accept(w,c.b,item)}
+function accept(w,b,item){if(b.type==='belt'){if(b.hold)return false;b.hold=item;b.prog=0;return true}
+ if(b.type==='seller'){w.money+=PRICE[item];w.earned+=PRICE[item];w.sold[item]=(w.sold[item]||0)+1;return true}
+ if(b.type==='smelter'||b.type==='assembler'){const rs=RECIPE[b.type];if(!rs.some(r=>r.in[item]))return false;if((b.inv[item]||0)>=6)return false;b.inv[item]=(b.inv[item]||0)+1;return true}
+ return false}
+function step(w,dt){w.t+=dt;for(let y=0;y<H;y++)for(let x=0;x<W;x++){const b=w.g[y][x].b;if(!b)continue;
+ if(b.type==='miner'){b.t+=dt;if(b.t>=1.2&&!b.hold){b.hold=w.g[y][x].ore;b.t=0}if(b.hold&&out(w,x,y,b,b.hold))b.hold=null}
+ else if(b.type==='belt'){if(b.hold){b.prog=Math.min(1,b.prog+dt*2.2);if(b.prog>=1&&out(w,x,y,b,b.hold))b.hold=null}}
+ else if(b.type==='smelter'||b.type==='assembler'){
+  if(b.hold){if(out(w,x,y,b,b.hold))b.hold=null}else{const rs=RECIPE[b.type];
+   let r=b.cur;if(!r){r=rs.slice().reverse().find(r=>Object.entries(r.in).every(([k,n])=>(b.inv[k]||0)>=n));if(r){for(const k in r.in)b.inv[k]-=r.in[k];b.cur=r;b.t=0}}
+   if(b.cur){b.t+=dt;if(b.t>=b.cur.t){b.hold=b.cur.out;b.cur=null;b.made=(b.made||0)+1}}}}}
+ const G=GOALS[w.goal];if(G&&(w.sold[G.item]||0)>=G.n){w.goal++;w.money+=100*w.goal;return 'goal'}return null}
+
+// ---- Cog Works UI ----
+const cv=document.getElementById('c'),cx=cv.getContext('2d');let w,tool='belt',dir=0,TS=32,OX=0,OY=0,parts=[],floats=[],shake=0,last=0,paused=false;
+const COL={iron:'#9fd3ff',copper:'#ff9a4d',ironp:'#d8f0ff',copperp:'#ffc08a',gear:'#c8ff6a',circuit:'#5dffb4'};
+const NAME={iron:'Iron ore',copper:'Copper ore',ironp:'Iron plate',copperp:'Copper plate',gear:'Gear',circuit:'Circuit'};
+const BC={belt:'#3af',miner:'#ffd23f',smelter:'#ff5a36',assembler:'#b46bff',seller:'#2dff9a'};
+function save(){try{localStorage.cogworks=JSON.stringify({g:w.g.map(r=>r.map(c=>({o:c.ore,b:c.b&&{type:c.b.type,dir:c.b.dir}}))),money:w.money,sold:w.sold,goal:w.goal,earned:w.earned,t:w.t})}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.cogworks);const n=newWorld(7);n.g.forEach((r,y)=>r.forEach((c,x)=>{const o=s.g[y][x];c.ore=o.o;if(o.b)c.b={type:o.b.type,dir:o.b.dir,inv:{},hold:null,prog:0,t:0}}));Object.assign(n,{money:s.money,sold:s.sold,goal:s.goal,earned:s.earned,t:s.t});return n}catch(e){return null}}
+let AC=null,master,musicOn=true;
+function au(){if(AC)return;try{AC=new(window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=.5;master.connect(AC.destination);music()}catch(e){AC=null}}
+function tone(f,d,type,v,sl){if(!AC)return;const o=AC.createOscillator(),g=AC.createGain();o.type=type||'square';o.frequency.value=f;if(sl)o.frequency.exponentialRampToValueAtTime(sl,AC.currentTime+d);g.gain.setValueAtTime(v||.15,AC.currentTime);g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d);o.connect(g);g.connect(master);o.start();o.stop(AC.currentTime+d)}
+const sfx={place:()=>tone(320,.08,'square',.12,640),bad:()=>tone(140,.15,'sawtooth',.12,90),sell:()=>tone(1200+Math.random()*300,.05,'sine',.04),goal:()=>[523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.25,'triangle',.18),i*110)),del:()=>tone(500,.12,'triangle',.12,120)};
+function music(){const b=60/104,ch=[[110,131,165],[98,123,147],[87,110,131],[98,123,147]];let n=0;
+ setInterval(()=>{if(!AC||!musicOn||paused)return;const t=AC.currentTime,c=ch[Math.floor(n/8)%4];
+  const o=AC.createOscillator(),g=AC.createGain(),f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=600+400*Math.sin(n/10)+Math.min(800,w.goal*120);o.type='sawtooth';o.frequency.value=c[n%3]*(n%4==3?2:1);g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.001,t+b*.45);o.connect(f);f.connect(g);g.connect(master);o.start(t);o.stop(t+b*.5);
+  if(n%2==0){const k=AC.createOscillator(),kg=AC.createGain();k.frequency.setValueAtTime(120,t);k.frequency.exponentialRampToValueAtTime(40,t+.12);kg.gain.setValueAtTime(.18,t);kg.gain.exponentialRampToValueAtTime(.001,t+.15);k.connect(kg);kg.connect(master);k.start(t);k.stop(t+.16)}
+  else{const bs=AC.createBufferSource(),buf=AC.createBuffer(1,2000,AC.sampleRate),d=buf.getChannelData(0);for(let i=0;i<2000;i++)d[i]=(Math.random()*2-1)*(1-i/2000);bs.buffer=buf;const hg=AC.createGain();hg.gain.value=.04;bs.connect(hg);hg.connect(master);bs.start(t)}
+  n++},b*500)}
+function resize(){const dpr=Math.min(2,devicePixelRatio||1);cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;cx.setTransform(dpr,0,0,dpr,0,0);
+ const top=64,bot=150;TS=Math.floor(Math.min(innerWidth/W,(innerHeight-top-bot)/H));OX=Math.floor((innerWidth-TS*W)/2);OY=top+Math.floor((innerHeight-top-bot-TS*H)/2)}
+addEventListener('resize',resize);
+function burst(x,y,c,n){for(let i=0;i<(n||10);i++)parts.push({x,y,vx:(Math.random()-.5)*160,vy:(Math.random()-.5)*160,l:.6,c})}
+let mt=0;function msg(s){const m=document.getElementById('msg');m.textContent=s;m.style.opacity=1;clearTimeout(mt);mt=setTimeout(()=>m.style.opacity=0,1700)}
+function updDir(){document.getElementById('rot').textContent=['→','↓','←','↑'][dir]}
+function tap(px,py){au();const x=Math.floor((px-OX)/TS),y=Math.floor((py-OY)/TS);if(x<0||y<0||x>=W||y>=H)return;const c=w.g[y][x],sx=OX+x*TS+TS/2,sy=OY+y*TS+TS/2;
+ if(tool==='del'){if(c.b){remove(w,x,y);sfx.del();burst(sx,sy,'#ff5577');save()}return}
+ if(c.b){if(c.b.type===tool){c.b.dir=(c.b.dir+1)%4;sfx.place();save()}else{msg('Tile taken. Tap ✖ Remove first');sfx.bad()}return}
+ if(tool==='miner'&&!c.ore){msg('Miners only go on ore patches');sfx.bad();return}
+ if(w.money<COST[tool]){msg('Need $'+COST[tool]);sfx.bad();shake=5;return}
+ if(place(w,x,y,tool,dir)){sfx.place();burst(sx,sy,BC[tool],8);navigator.vibrate&&navigator.vibrate(8);save()}}
+let drag=null;
+cv.addEventListener('pointerdown',e=>{e.preventDefault();drag={lx:-1,ly:-1};paint(e,false)});
+cv.addEventListener('pointermove',e=>{if(drag&&tool==='belt')paint(e,true)});
+addEventListener('pointerup',()=>drag=null);addEventListener('pointercancel',()=>drag=null);
+function paint(e,move){const x=Math.floor((e.clientX-OX)/TS),y=Math.floor((e.clientY-OY)/TS);if(x===drag.lx&&y===drag.ly)return;
+ if(move){if(drag.lx<0||x<0||y<0||x>=W||y>=H){drag.lx=x;drag.ly=y;return}const dx=x-drag.lx,dy=y-drag.ly;
+  if(Math.abs(dx)+Math.abs(dy)===1){const nd=dx>0?0:dy>0?1:dx<0?2:3;const pc=w.g[drag.ly][drag.lx];if(pc.b&&pc.b.type==='belt')pc.b.dir=nd;dir=nd;updDir();if(!w.g[y][x].b)tap(e.clientX,e.clientY)}}
+ else tap(e.clientX,e.clientY);drag.lx=x;drag.ly=y}
+addEventListener('keydown',e=>{if(e.key==='r'){dir=(dir+1)%4;updDir()}const m={1:'belt',2:'miner',3:'smelter',4:'assembler',5:'seller',x:'del'}[e.key];if(m)setTool(m)});
+function setTool(t){tool=t;document.querySelectorAll('.tb').forEach(b=>b.classList.toggle('on',b.dataset.t===t))}
+function drawItem(it,x,y,s){cx.fillStyle=COL[it];cx.shadowColor=COL[it];cx.shadowBlur=8;
+ if(it==='gear'){cx.beginPath();for(let i=0;i<12;i++){const a=i/12*6.283+w.t*3,r=i%2?s:s*.7;cx.lineTo(x+Math.cos(a)*r,y+Math.sin(a)*r)}cx.fill()}
+ else if(it==='circuit'){cx.fillRect(x-s,y-s*.7,s*2,s*1.4);cx.fillStyle='#032';cx.fillRect(x-s*.5,y-s*.3,s,s*.6)}
+ else if(it.endsWith('p'))cx.fillRect(x-s,y-s*.5,s*2,s);else{cx.beginPath();cx.arc(x,y,s*.8,0,7);cx.fill()}cx.shadowBlur=0}
+function arrow(X,Y,d,col){cx.save();cx.translate(X+TS/2,Y+TS/2);cx.rotate(d*Math.PI/2);cx.fillStyle=col;cx.beginPath();cx.moveTo(TS*.42,0);cx.lineTo(TS*.28,-TS*.1);cx.lineTo(TS*.28,TS*.1);cx.fill();cx.restore()}
+function drawB(b,X,Y){const t=w.t,c=BC[b.type];
+ if(b.type==='belt'){cx.save();cx.translate(X+TS/2,Y+TS/2);cx.rotate(b.dir*Math.PI/2);cx.fillStyle='#14203c';cx.fillRect(-TS/2,-TS*.3,TS,TS*.6);cx.strokeStyle='rgba(60,170,255,.55)';cx.lineWidth=2;
+  for(let i=0;i<3;i++){const o=((t*2.2+i/3)%1)*TS-TS/2;cx.beginPath();cx.moveTo(o-3,-TS*.2);cx.lineTo(o+3,0);cx.lineTo(o-3,TS*.2);cx.stroke()}cx.restore();
+  if(b.hold){const[dx,dy]=DIRS[b.dir],p=b.prog-.5;drawItem(b.hold,X+TS/2+dx*p*TS,Y+TS/2+dy*p*TS,TS*.18)}return}
+ const busy=b.cur||b.type==='miner',pulse=busy?.5+.5*Math.sin(t*8):0;
+ cx.fillStyle='#10162e';cx.fillRect(X+2,Y+2,TS-4,TS-4);cx.strokeStyle=c;cx.shadowColor=c;cx.shadowBlur=6+pulse*10;cx.lineWidth=2;cx.strokeRect(X+3,Y+3,TS-6,TS-6);cx.shadowBlur=0;
+ cx.fillStyle=c;cx.font=`bold ${TS*.42}px system-ui`;cx.textAlign='center';cx.textBaseline='middle';
+ const g={miner:'⛏',smelter:'♨',assembler:'⚙',seller:'$'}[b.type];cx.save();cx.translate(X+TS/2,Y+TS/2);if(b.type==='assembler'&&b.cur)cx.rotate(t*3);cx.fillText(g,0,1);cx.restore();
+ if(b.cur){cx.fillStyle=c;cx.fillRect(X+4,Y+TS-7,(TS-8)*(b.t/b.cur.t),3)}
+ if(b.type!=='seller')arrow(X,Y,b.dir,'#fff');
+ if(b.type==='smelter'&&b.cur&&Math.random()<.15)parts.push({x:X+TS/2,y:Y+4,vx:(Math.random()-.5)*10,vy:-30,l:1,c:'rgba(255,120,60,.5)',smoke:1});
+ if(b.hold)drawItem(b.hold,X+TS*.78,Y+TS*.22,TS*.12)}
+const stars=[...Array(60)].map(()=>({x:Math.random(),y:Math.random(),s:Math.random()*2}));
+function draw(){const t=w.t;cx.fillStyle='#070914';cx.fillRect(0,0,innerWidth,innerHeight);
+ stars.forEach(s=>{cx.fillStyle=`rgba(150,180,255,${.2+.2*Math.sin(t+s.x*20)})`;cx.fillRect(s.x*innerWidth,s.y*innerHeight,s.s,s.s)});
+ cx.save();if(shake>.3){cx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.85}
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=w.g[y][x],X=OX+x*TS,Y=OY+y*TS;cx.fillStyle=(x+y)%2?'#0d1124':'#0f142a';cx.fillRect(X,Y,TS,TS);
+  if(c.ore){cx.fillStyle=c.ore==='iron'?'rgba(120,190,255,.2)':'rgba(255,140,60,.2)';cx.fillRect(X+1,Y+1,TS-2,TS-2);cx.fillStyle=COL[c.ore];
+   for(let i=0;i<3;i++){cx.globalAlpha=.5+.3*Math.sin(t*2+x+i*2);cx.beginPath();cx.arc(X+TS*(.25+.25*i),Y+TS*(.3+.2*((i+x+y)%3)),TS*.08,0,7);cx.fill()}cx.globalAlpha=1}}
+ cx.strokeStyle='rgba(80,120,255,.35)';cx.lineWidth=2;cx.shadowColor='#36f';cx.shadowBlur=14;cx.strokeRect(OX,OY,TS*W,TS*H);cx.shadowBlur=0;
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){const b=w.g[y][x].b;if(b)drawB(b,OX+x*TS,OY+y*TS)}
+ parts=parts.filter(p=>(p.l-=1/60)>0);parts.forEach(p=>{p.x+=p.vx/60;p.y+=p.vy/60;cx.globalAlpha=Math.min(1,p.l*2);cx.fillStyle=p.c;cx.beginPath();cx.arc(p.x,p.y,p.smoke?4+(1-p.l)*6:2.5,0,7);cx.fill()});cx.globalAlpha=1;
+ floats=floats.filter(f=>(f.l-=1/60)>0);cx.font='bold 14px system-ui';cx.textAlign='center';floats.forEach(f=>{f.y-=.6;cx.globalAlpha=f.l;cx.fillStyle='#2dff9a';cx.fillText(f.s,f.x,f.y)});cx.globalAlpha=1;cx.restore();
+ // HUD
+ const G=GOALS[w.goal];document.getElementById('money').textContent='$'+Math.floor(w.money);
+ document.getElementById('goal').innerHTML=G?`Goal ${w.goal+1}/6: sell <b style="color:${COL[G.item]}">${G.n} ${NAME[G.item]}s</b> <span>${Math.min(G.n,w.sold[G.item]||0)}/${G.n}</span><i style="width:${100*Math.min(1,(w.sold[G.item]||0)/G.n)}%"></i>`:'<b>Factory complete!</b> Keep growing your income.';
+ document.getElementById('rate').textContent='$'+rate.toFixed(1)+'/s'}
+let rate=0,hist=[],acc=0,lastE=0,saveT=0;
+function loop(ts){const dt=Math.min(.1,(ts-last)/1000||0);last=ts;
+ if(!paused){acc+=dt;while(acc>=.05){acc-=.05;const e0=w.earned;const r=step(w,.05);
+   if(w.earned>e0){if(Math.random()<.5)sfx.sell()}
+   if(r==='goal'){sfx.goal();shake=8;msg('Goal complete! +$'+100*w.goal);burst(innerWidth/2,40,'#ffd23f',40);navigator.vibrate&&navigator.vibrate([30,40,30]);if(w.goal===2)msg('Next up: feed plates into ⚙ Assemblers')}}
+  hist.push([w.t,w.earned]);while(hist.length>2&&w.t-hist[0][0]>10)hist.shift();rate=hist.length>1?(w.earned-hist[0][1])/Math.max(1,w.t-hist[0][0]):0;
+  if(w.earned>lastE){// money floats over sellers
+   for(let y=0;y<H;y++)for(let x=0;x<W;x++){const b=w.g[y][x].b;if(b&&b.type==='seller'&&Math.random()<.04)floats.push({x:OX+x*TS+TS/2,y:OY+y*TS,s:'+$',l:1})}lastE=w.earned}
+  saveT+=dt;if(saveT>5){saveT=0;save()}}
+ draw();requestAnimationFrame(loop)}
+function start(fresh){au();document.getElementById('menu').style.display='none';w=(!fresh&&load())||newWorld(Math.floor(Math.random()*1e6));if(fresh)save();resize();updDir();
+ if(fresh)msg('Tip: put a ⛏ Miner on blue ore, facing a ♨ Smelter, facing a $ Seller');}
+document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>{au();setTool(b.dataset.t);sfx.place()}));
+document.getElementById('rot').onclick=()=>{dir=(dir+1)%4;updDir();sfx.place()};
+document.getElementById('mus').onclick=e=>{musicOn=!musicOn;e.target.textContent=musicOn?'♪':'✕'};
+document.getElementById('help').onclick=()=>{paused=true;document.getElementById('how').style.display='flex'};
+document.getElementById('howx').onclick=()=>{paused=false;document.getElementById('how').style.display='none'};
+document.getElementById('newg').onclick=()=>start(true);document.getElementById('cont').onclick=()=>start(false);
+if(!localStorage.cogworks)document.getElementById('cont').style.display='none';
+w=newWorld(7);resize();setTool('belt');requestAnimationFrame(loop);
+</script></body></html>
