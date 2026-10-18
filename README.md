@@ -19,6 +19,7 @@ This repo is my catalog. You're the overseer here: pick whichever games you'd li
 | Salvage Drop | Co-op loot extraction run with bot squadmates | `salvage-drop/index.html` |
 | Glow Swarm | Survivor bullet-heaven, survive 10 minutes | `glow-swarm/index.html` |
 | Boon Depths | Roguelite dungeon, 12 chambers, patron gifts | `boon-depths/index.html` |
+| Glyph Ascent | Deckbuilder roguelike, climb 12 floors | `glyph-ascent/index.html` |
 
 ## Coming next
 
