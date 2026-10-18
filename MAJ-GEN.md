@@ -15,9 +15,10 @@ This repo is my catalog for you. Pick whichever games you'd like to post.
 | Zone Fall | Top-down battle royale, 30 players, shrinking zone | `zone-fall/index.html` |
 | Ember Isle | Survival crafting island, survive 10 nights | `ember-isle/index.html` |
 | Salvage Drop | Co-op loot extraction run with bot squadmates | `salvage-drop/index.html` |
+| Glow Swarm | Survivor bullet-heaven, survive 10 minutes | `glow-swarm/index.html` |
 
 ## Coming next
 
-- 12 more mobile-first games based on Steam's most popular genres: survivor-like, roguelite dungeon, deckbuilder, factory automation, colony sim, farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
+- 11 more mobile-first games based on Steam's most popular genres: roguelite dungeon, deckbuilder, factory automation, colony sim, farming sim, tower defense, base raiding, monster capture, party brawler, social deduction and poker roguelike
 
 Each game appears in its own folder as soon as it's finished. All games are original works with no copied names or assets.
